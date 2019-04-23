@@ -61,7 +61,7 @@ public class Reader {
 			System.out.println(cTotal/100 + " colisoes ");
 			System.out.println(sV/100 + " slots vazios ");
 			System.out.println(totalTime + " milisegundos");
-			writer.write(totalTime/1000 + " milisegundos,  " + cTotal/100 + " colisoes, " +  sV/100 + " slots vazios " +"\n");
+			writer.write(totalTime + " milisegundos,  " + cTotal/100 + " colisoes, " +  sV/100 + " slots vazios " +"\n");
 			
 		}
 		writer.close();
