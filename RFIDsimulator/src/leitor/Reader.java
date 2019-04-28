@@ -13,99 +13,244 @@ public class Reader {
 		
 		
 		
-		List<Set<String>> tags = new ArrayList<Set<String>>();
-		resultados[] result = new resultados[2];
+		ArrayList<ArrayList<Set<String>>> tags = new ArrayList<ArrayList<Set<String>>>(100);
 		tags = tagsAlocation(tags);
-		result = QT(result, tags, 0, 10);		
-		result = QTsc(result, tags, 1, 10);
+		//TesteIDTags(tags); //verificação antiga pra ver se todas tags são unicas
+		resultados[] result = new resultados[4];
 		
+		System.out.println("qt <----");
+		result = QT(result, tags, 0, 10);	
+		System.out.println("qt sc  <----");
+		result = QTsc(result, tags, 1, 10);
+		System.out.println("qt quaternario  <----");
+		result = QTquaternario(result,tags,2,10);
+		System.out.println("qt sc quaternario <-----");
+		result = QTscQuaternario(result, tags, 3, 10);
 		
 		
 		plotTotalSlots("Total Slots", "Total Slots", result, false, false);
-		plotTempoExec("Execution Time", "Execution Time (ms)", result, false, true);
+		plotTempoExec("Execution Time", "Execution Time (ms)", result, false, false);
 		//plotEtiquetaLeitor("Bits Etiqueta_Leitor", "Bits Etiqueta_Leitor", result, false, false);
-		plotSlotsColided("Slots Colided", "Slots Colided", result, false, false);
+		plotSlotsColided("Slots Collided", "Slots Collided", result, false, false);
 		plotSlotsEmpty("Slots Empty", "Slots Empty", result, false, false);
 		
 		
 	}
 	
-	public static List<Set<String>> tagsAlocation(List<Set<String>> tags){
+	public static ArrayList<ArrayList<Set<String>>> tagsAlocation(ArrayList<ArrayList<Set<String>>> tags){
 		
 		
-		
+		for(int j = 0; j < 100; ++j ) {
+			tags.add(new ArrayList<Set<String>>());
+		}
 		for(int i=1;i<=10;i++) {
-			Tag a = new Tag();
-			Set<String> M;
-			M = a.getTags(i*100);
-			tags.add(M);
-			System.out.println("Tags: "+i*100+" geradas");
+			for(int k=1;k<=100;k++) {
+				Tag a = new Tag();
+				Set<String> M;
+				M = a.getTags(i*100);
+				tags.get(k-1).add(M);
+				System.out.println("Tags"+k+": "+i*100+" geradas");
+			}	
 		}
 		return tags;
 		
 	}
-
-	public static resultados[] QT(resultados[] result, List<Set<String>> tags, int indexArray, int numTestes) {
 	
-		resultados resultQT = new resultados("QT",numTestes);
+	public static void TesteIDTags(ArrayList<ArrayList<Set<String>>> tags){
 		
+		System.out.println();
+		System.out.println("Teste TAGS ---------");
+		Set<String> teste = new HashSet<String>();
+		for(int i=1;i<=10;i++) {
+			for(int k=1;k<=100;k++) {
+				teste = tags.get(k-1).get(i-1);
+				int contagemAux = 0;
+				System.out.println("teste tamanho tags "+k+": "+teste.size());
+				Iterator<String> iterator = teste.iterator();
+				Iterator<String> iteratorAux = teste.iterator();
+				while(iteratorAux.hasNext()) {
+					String atual = iteratorAux.next();
+					int contagem = 0;
+					while(iterator.hasNext()) {
+						
+						String next = iterator.next();
+						if(atual.equals(next)) {
+							contagem++;
+						}
+					}
+					if(contagem >1) { //se for maior que 1 quer dizer que nao eh unica
+						System.out.println("contagem: "+contagem);	
+						contagemAux = contagem + contagemAux;
+					}
+				}
+				if(contagemAux > 0) {
+					System.out.println("algo errado");
+				}else {
+					System.out.println("tudo ok");
+				}
+			}
+		}
+	}
+	
+	public static resultados[] QT(resultados[] result, ArrayList<ArrayList<Set<String>>> tags, int indexArray, int numTestes) {
+		
+		resultados resultQT = new resultados("QT",numTestes);
 		for(int i = 1; i <= 10; i++){ //inicio round query
 		long startTime =System.currentTimeMillis();
-		int cTotal = 0, sV = 0;
-		int totalSlots=0, sucess=0;
+		double cTotal = 0, sV = 0;
+		double totalSlots=0, sucess=0;
 		
 		System.out.println("Teste " + i);
 		for(int k = 1; k <= 100; k++) {
-					
-			Set<String> M;
-			Queue<String> Q = new LinkedList<>();
-			M = tags.get(i-1);
-			int c=0,sv =0;
-			Iterator<String> it = M.iterator();
-			Q.add("0");
-			Q.add("1");
-			while(!M.isEmpty()) {
-				boolean t = true;
-				if(Q.isEmpty()) break;
-				String query = Q.poll();
-				int siz = query.length();
-				while(it.hasNext()) {
-					String id = it.next();
-					if(query.contentEquals(id.subSequence(0, siz))) {
-						c++;
-						if(siz == 64) { 
-							M.remove(query);
-							t=false; totalSlots++;
-							break;
-							} 
-						if(t == true && c > 1) {
-							Q.add(query+"0");
-							Q.add(query+"1");							
-							t = false; 
-						}
-					}						
-				}if(t) {
-					sv++;
+			Set<String> Memory = new HashSet<String>();
+			Memory.addAll(tags.get(k-1).get(i-1));
+			Queue<String> queue = new LinkedList<>();
+			queue.add("0");
+			queue.add("1");
+			int sv = 0;
+			int c = 0;
+			int suc = 0;
+			
+			while(!Memory.isEmpty()) {
+				
+				if(queue.isEmpty()) {
+					System.out.println("a fila esta vazia");
+					break;
 				}
-				cTotal+=c;
-				sV+=sv;				
-				totalSlots = sv + c + totalSlots;
-				c = 0;
-				sv = 0;
-				it = M.iterator();
+				int colisao = 0;
+				String query = queue.poll();
+				int size = query.length();
+				Iterator<String> iterador = Memory.iterator();
+				String aux = "";
+				while(iterador.hasNext()) {
+					String id = iterador.next();
+					String idSubsequence = (String) id.subSequence(0, size);
+					if(query.equals(idSubsequence)){
+						if(colisao<1) {
+							aux = id;
+						}
+						colisao++;						
+					}
+					if(colisao>1) {
+						
+						break;
+					}
+				}
+				if(colisao == 1) { //sucesso
+					suc++;
+					Memory.remove(aux);					
+				}else if(colisao < 1) { // slot vazio
+					sv++;
+				}else if(colisao > 1) {// colisão
+					queue.add(query+"0");
+					queue.add(query+"1");
+					c++;
+				}
 			}
+			totalSlots = sv+ c + suc + totalSlots;			
+			sV = sv + sV;
+			cTotal = c + cTotal;
+			sucess = suc + sucess;
+			//System.out.println("---------------------------------->sucessos: "+suc);
 		}//fim de 100 simulações por qtd
 		long endTime =System.currentTimeMillis();
 		long totalTime =endTime - startTime;
-		resultQT.totalSlots[i-1] = totalSlots/100;
-		resultQT.totalSlotsColided[i-1] = cTotal/100;
-		resultQT.totalSlotsEmpty[i-1] = sV/100;
-		resultQT.tempoTotalExecucao[i-1] = totalTime; //(ms)
+		resultQT.totalSlots[i-1] = totalSlots/100.0;
+		resultQT.totalSlotsColided[i-1] = cTotal/100.0;
+		resultQT.totalSlotsEmpty[i-1] = sV/100.0;
+		resultQT.tempoTotalExecucao[i-1] = totalTime/100.0; //(ms)
 		
-		System.out.println(cTotal/100 + " colisoes ");
-		System.out.println(sV/100 + " slots vazios ");
-		System.out.println(totalTime + " milisegundos");
+		System.out.println(resultQT.totalSlotsColided[i-1] + " colisoes ");
+		System.out.println(resultQT.totalSlotsEmpty[i-1] + " slots vazios ");
+		System.out.println(resultQT.tempoTotalExecucao[i-1] + " milisegundos");		
+		System.out.println(resultQT.totalSlots[i-1]+ " Total Slots");
+		System.out.println("-----------------------------------------");
 		
+		
+	}
+		result[indexArray] = resultQT;
+		return result;	
+		
+	}
+
+	
+	
+public static resultados[] QTquaternario(resultados[] result, ArrayList<ArrayList<Set<String>>> tags, int indexArray, int numTestes) {
+		
+		resultados resultQT = new resultados("QTquaternario",numTestes);
+		
+		for(int i = 1; i <= 10; i++){ //inicio round query
+		long startTime =System.currentTimeMillis();
+		double cTotal = 0, sV = 0;
+		double totalSlots=0, sucess=0;
+		
+		System.out.println("Teste " + i);
+		for(int k = 1; k <= 100; k++) {
+			Set<String> Memory = new HashSet<String>();
+			Memory.addAll(tags.get(k-1).get(i-1));
+			Queue<String> queue = new LinkedList<>();
+			queue.add("00");
+			queue.add("01");
+			queue.add("10");
+			queue.add("11");
+			int sv = 0;
+			int c = 0;
+			int suc = 0;
+			
+			while(!Memory.isEmpty()) {
+				
+				if(queue.isEmpty()) {
+					System.out.println("a fila esta vazia");
+					break;
+				}
+				int colisao = 0;
+				String query = queue.poll();
+				int size = query.length();
+				Iterator<String> iterador = Memory.iterator();
+				String aux = "";
+				while(iterador.hasNext()) {
+					String id = iterador.next();
+					String idSubsequence = (String) id.subSequence(0, size);
+					if(query.equals(idSubsequence)){
+						if(colisao<1) {
+							aux = id;
+						}
+						colisao++;						
+					}
+					if(colisao>1) {
+						
+						break;
+					}
+				}
+				if(colisao == 1) { //sucesso
+					suc++;
+					Memory.remove(aux);					
+				}else if(colisao < 1) { // slot vazio
+					sv++;
+				}else if(colisao > 1) {// colisão
+					queue.add(query+"00");
+					queue.add(query+"01");
+					queue.add(query+"10");
+					queue.add(query+"11");
+					c++;
+				}
+			}
+			totalSlots = sv+ c + suc + totalSlots;			
+			sV = sv + sV;
+			cTotal = c + cTotal;
+			sucess = suc + sucess;
+			//System.out.println("---------------------------------->sucessos: "+suc);
+		}//fim de 100 simulações por qtd
+		long endTime =System.currentTimeMillis();
+		long totalTime =endTime - startTime;
+		resultQT.totalSlots[i-1] = totalSlots/100.0;
+		resultQT.totalSlotsColided[i-1] = cTotal/100.0;
+		resultQT.totalSlotsEmpty[i-1] = sV/100.0;
+		resultQT.tempoTotalExecucao[i-1] = totalTime/100.0; //(ms)
+		
+		System.out.println(resultQT.totalSlotsColided[i-1] + " colisoes ");
+		System.out.println(resultQT.totalSlotsEmpty[i-1] + " slots vazios ");
+		System.out.println(resultQT.tempoTotalExecucao[i-1] + " milisegundos");		
 		System.out.println(resultQT.totalSlots[i-1]+ " Total Slots");
 		System.out.println("-----------------------------------------");
 		
@@ -117,79 +262,192 @@ public class Reader {
 	}
 	
 	
-	public static resultados[] QTsc(resultados[] result, List<Set<String>> tags, int indexArray, int numTestes) {
+public static resultados[] QTsc(resultados[] result, ArrayList<ArrayList<Set<String>>> tags, int indexArray, int numTestes) {
+	
+	resultados resultQT = new resultados("QTsc",numTestes);
+	
+	for(int i = 1; i <= 10; i++){ //inicio round query
+	long startTime =System.currentTimeMillis();
+	double cTotal = 0, sV = 0;
+	double totalSlots=0, sucess=0;
+	
+	System.out.println("Teste " + i);
+	for(int k = 1; k <= 100; k++) {
+		Set<String> Memory = new HashSet<String>();
+		Memory.addAll(tags.get(k-1).get(i-1));
+		Queue<String> queue = new LinkedList<>();
+		queue.add("0");
+		queue.add("1");
+		int sv = 0;
+		int c = 0;
+		int suc = 0;
 		
-		resultados resultQTsc = new resultados("QTsc",numTestes);
-		
-		for(int i = 1; i <= 10; i++){ //inicio round query
-		long startTime =System.currentTimeMillis();
-		int cTotal = 0, sV = 0;
-		int totalSlots=0, sucess=0;
-		
-		System.out.println("Teste " + i);
-		for(int k = 1; k <= 100; k++) {		
-			Set<String> M;
-			Queue<String> Q = new LinkedList<>();
-			M = tags.get(i-1);
-			int c=0,sv =0;
-			Iterator<String> it = M.iterator();
-			Q.add("0");
-			Q.add("1");
-			while(!M.isEmpty()) {
-				boolean t = true;
-				if(Q.isEmpty()) break;
-				String query = Q.poll();
-				int siz = query.length();
-				while(it.hasNext()) {
-					String id = it.next();
-					if(query.contentEquals(id.subSequence(0, siz))) {
-						c++;
-						if(siz == 64) { M.remove(query); t = false; sucess++;  break;} 
-						if(t == true && c > 1) {
-							Q.add(query+"0");
-							Q.add(query+"1");							
-							t = false; 
-						}
-					}				
-				}if(t) {
-					sv++;
-					if(query.length()>=64) {
-					
-					}else {
-						Q.add(query+"0");						
-					}
-					Q.poll();
-					
-				}
-				cTotal+=c;
-				sV+=sv;
-				totalSlots = c + sv + totalSlots + sucess;
-				c = 0;
-				sv = 0;
-				sucess = 0;
-				it = M.iterator();
+		while(!Memory.isEmpty()) {
+			
+			if(queue.isEmpty()) {
+				System.out.println("a fila esta vazia");
+				break;
 			}
-		}//fim de 100 simulações por qtd
-		long endTime =System.currentTimeMillis();
-		long totalTime =endTime - startTime;
-		resultQTsc.totalSlots[i-1] = totalSlots/100;
-		resultQTsc.totalSlotsColided[i-1] = cTotal/100;
-		resultQTsc.totalSlotsEmpty[i-1] = sV/100;
-		resultQTsc.tempoTotalExecucao[i-1] = totalTime; //(ms)
-		
-		System.out.println(cTotal/100 + " colisoes ");
-		System.out.println(sV/100 + " slots vazios ");
-		System.out.println(totalTime + " milisegundos");
-		
-		System.out.println(resultQTsc.totalSlots[i-1]+ " Total Slots");
-		System.out.println("-----------------------------------------");
-		
-		
-	}
-		result[indexArray] = resultQTsc;
-		return result;	
-		
-	}
+			int colisao = 0;
+			String query = queue.poll();
+			int size = query.length();
+			Iterator<String> iterador = Memory.iterator();
+			String aux = "";
+			while(iterador.hasNext()) {
+				String id = iterador.next();
+				String idSubsequence = (String) id.subSequence(0, size);
+				if(query.equals(idSubsequence)){
+					if(colisao<1) {
+						aux = id;
+					}
+					colisao++;						
+				}
+				if(colisao>1) {
+					
+					break;
+				}
+			}
+			if(colisao == 1) { //sucesso
+				suc++;
+				Memory.remove(aux);					
+			}else if(colisao < 1) { // slot vazio
+				sv++;
+				query = queue.poll();
+				queue.add(query+"0");
+				queue.add(query+"1");
+			}else if(colisao > 1) {// colisão
+				queue.add(query+"0");
+				queue.add(query+"1");
+				c++;
+			}
+		}
+		totalSlots = sv+ c + suc + totalSlots;			
+		sV = sv + sV;
+		cTotal = c + cTotal;
+		sucess = suc + sucess;
+		//System.out.println("---------------------------------->sucessos: "+suc);
+	}//fim de 100 simulações por qtd
+	long endTime =System.currentTimeMillis();
+	long totalTime =endTime - startTime;
+	resultQT.totalSlots[i-1] = totalSlots/100.0;
+	resultQT.totalSlotsColided[i-1] = cTotal/100.0;
+	resultQT.totalSlotsEmpty[i-1] = sV/100.0;
+	resultQT.tempoTotalExecucao[i-1] = totalTime/100.0; //(ms)
+	
+	System.out.println(resultQT.totalSlotsColided[i-1] + " colisoes ");
+	System.out.println(resultQT.totalSlotsEmpty[i-1] + " slots vazios ");
+	System.out.println(resultQT.tempoTotalExecucao[i-1] + " milisegundos");		
+	System.out.println(resultQT.totalSlots[i-1]+ " Total Slots");
+	System.out.println("-----------------------------------------");
+	
+	
+}
+	result[indexArray] = resultQT;
+	return result;	
+	
+}
+
+public static resultados[] QTscQuaternario(resultados[] result, ArrayList<ArrayList<Set<String>>> tags, int indexArray, int numTestes) {
+	
+	resultados resultQT = new resultados("QTscQuaternario",numTestes);
+	
+	for(int i = 1; i <= 10; i++){ //inicio round query
+	long startTime =System.currentTimeMillis();
+	double cTotal = 0, sV = 0;
+	double totalSlots=0, sucess=0;
+	
+	System.out.println("Teste " + i);
+	for(int k = 1; k <= 100; k++) {
+		Set<String> Memory = new HashSet<String>();
+		Memory.addAll(tags.get(k-1).get(i-1));
+		Queue<String> queue = new LinkedList<>();
+		queue.add("00");
+		queue.add("01");
+		queue.add("10");
+		queue.add("11");
+		int sv = 0;
+		int c = 0;
+		int suc = 0;
+		int svCount=0;
+		while(!Memory.isEmpty()) {
+			
+			if(queue.isEmpty()) {
+				System.out.println("a fila esta vazia");
+				break;
+			}
+			int colisao = 0;
+			String query = queue.poll();
+			int size = query.length();
+			Iterator<String> iterador = Memory.iterator();
+			String aux = "";
+			while(iterador.hasNext()) {
+				String id = iterador.next();
+				String idSubsequence = (String) id.subSequence(0, size);
+				if(query.equals(idSubsequence)){
+					if(colisao<1) {
+						aux = id;
+					}
+					colisao++;						
+				}
+				if(colisao>1) {
+					
+					break;
+				}
+			}
+			if(colisao == 1) { //sucesso
+				suc++;
+				Memory.remove(aux);					
+			}else if(colisao < 1) { // slot vazio
+				sv++;
+				String queryLast = (String) query.subSequence(size-2,size);
+				if(queryLast.equals("00")) {
+					svCount++;
+				}else if((queryLast.equals("01"))&&(svCount==1)) {
+					svCount++;
+				}else if((queryLast.equals("10"))&&(svCount==2)) {
+					svCount++; // 3 slots vazios
+					query = queue.poll();
+					queue.add(query+"00");
+					queue.add(query+"01");
+					queue.add(query+"10");
+					queue.add(query+"11");
+					svCount=0; // resetar
+				}else {
+					svCount=0;
+				}
+			}else if(colisao > 1) {// colisão
+				queue.add(query+"00");
+				queue.add(query+"01");
+				queue.add(query+"10");
+				queue.add(query+"11");
+				c++;
+			}
+		}
+		totalSlots = sv+ c + suc + totalSlots;			
+		sV = sv + sV;
+		cTotal = c + cTotal;
+		sucess = suc + sucess;
+		//System.out.println("---------------------------------->sucessos: "+suc);
+	}//fim de 100 simulações por qtd
+	long endTime =System.currentTimeMillis();
+	long totalTime =endTime - startTime;
+	resultQT.totalSlots[i-1] = totalSlots/100.0;
+	resultQT.totalSlotsColided[i-1] = cTotal/100.0;
+	resultQT.totalSlotsEmpty[i-1] = sV/100.0;
+	resultQT.tempoTotalExecucao[i-1] = totalTime/100.0; //(ms)
+	
+	System.out.println(resultQT.totalSlotsColided[i-1] + " colisoes ");
+	System.out.println(resultQT.totalSlotsEmpty[i-1] + " slots vazios ");
+	System.out.println(resultQT.tempoTotalExecucao[i-1] + " milisegundos");		
+	System.out.println(resultQT.totalSlots[i-1]+ " Total Slots");
+	System.out.println("-----------------------------------------");
+	
+	
+}
+	result[indexArray] = resultQT;
+	return result;	
+	
+}	
 
 public static void plotTempoExec(String title, String y_title, resultados[] result,
 		boolean use_log, boolean scale_from_0 ) throws IOException
@@ -218,7 +476,7 @@ public static void plotTempoExec(String title, String y_title, resultados[] resu
   for (resultados algoritmos : result)
       cmd += "'" + title + "_" + algoritmos.name + ".txt' title '" + algoritmos.name + "',";
   cmd += "\"";
-
+  System.out.println(title+".png gerada. Abrir na pasta do projeto.");
   Runtime rt = Runtime.getRuntime();
   Process pr = rt.exec(cmd);
 }
@@ -249,7 +507,7 @@ public static void plotTotalSlots(String title, String y_title, resultados[] res
   for (resultados algoritmos : result)
       cmd += "'" + title + "_" + algoritmos.name + ".txt' title '" + algoritmos.name + "',";
   cmd += "\"";
-
+  System.out.println(title+".png gerada. Abrir na pasta do projeto.");
   Runtime rt = Runtime.getRuntime();
   Process pr = rt.exec(cmd);
 }
@@ -282,6 +540,7 @@ public static void plotSlotsEmpty(String title, String y_title, resultados[] res
       cmd += "'" + title + "_" + algoritmos.name + ".txt' title '" + algoritmos.name + "',";
   cmd += "\"";
 
+  System.out.println(title+".png gerada. Abrir na pasta do projeto.");
   Runtime rt = Runtime.getRuntime();
   Process pr = rt.exec(cmd);
 }
@@ -313,7 +572,8 @@ public static void plotSlotsColided(String title, String y_title, resultados[] r
   for (resultados algoritmos : result)
       cmd += "'" + title + "_" + algoritmos.name + ".txt' title '" + algoritmos.name + "',";
   cmd += "\"";
-
+  
+  System.out.println(title+".png gerada. Abrir na pasta do projeto.");
   Runtime rt = Runtime.getRuntime();
   Process pr = rt.exec(cmd);
 }
@@ -345,7 +605,8 @@ public static void plotEtiquetaLeitor(String title, String y_title, resultados[]
   for (resultados algoritmos : result)
       cmd += "'" + title + "_" + algoritmos.name + ".txt' title '" + algoritmos.name + "',";
   cmd += "\"";
-
+  
+  System.out.println(title+".png gerada. Abrir na pasta do projeto.");
   Runtime rt = Runtime.getRuntime();
   Process pr = rt.exec(cmd);
 }

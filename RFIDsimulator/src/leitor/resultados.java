@@ -3,19 +3,19 @@ package leitor;
 public class resultados {
 
 	String name;
-	public int[] totalSlots;
-	public int[] totalSlotsEmpty;
-	public int[] totalSlotsColided;
-	public int[] totalBitsEtiquetaLeitor;
-	public long[] tempoTotalExecucao;
+	public double[] totalSlots;
+	public double[] totalSlotsEmpty;
+	public double[] totalSlotsColided;
+	public double[] totalBitsEtiquetaLeitor;
+	public double[] tempoTotalExecucao;
 	
 	public resultados(String name,int k) {
-		this.totalSlots = new int[k];
+		this.totalSlots = new double[k];
 		this.name = name;
-		this.totalSlotsEmpty = new int[k];
-		this.totalSlotsColided = new int[k];
-		this.totalBitsEtiquetaLeitor = new int[k];
-		this.tempoTotalExecucao = new long[k];
+		this.totalSlotsEmpty = new double[k];
+		this.totalSlotsColided = new double[k];
+		this.totalBitsEtiquetaLeitor = new double[k];
+		this.tempoTotalExecucao = new double[k];
 	}
 	
 	
